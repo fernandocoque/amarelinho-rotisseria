@@ -18,9 +18,9 @@ revoke insert,update,delete on public.club_members,public.club_history,public.cl
 create function amarelinho_private.place_order(p_name text,p_phone text,p_type public.order_type,p_address text,p_items jsonb) returns table(id bigint,tracking_token uuid) language plpgsql security definer set search_path='' as $$
 declare oid bigint; tok uuid; it jsonb; p public.products; qty integer; total_price numeric:=0; uid uuid:=auth.uid();
 begin
- if length(trim(p_name))<2 or length(trim(p_name))>120 or length(regexp_replace(p_phone,'[^0-9]','','g')) not between 10 and 13 then raise exception 'Informe nome e WhatsApp válidos'; end if;
+ if coalesce(length(trim(p_name)),0)<2 or length(trim(p_name))>120 or coalesce(length(regexp_replace(p_phone,'[^0-9]','','g')),0) not between 10 and 13 then raise exception 'Informe nome e WhatsApp válidos'; end if;
  if p_type='entrega' and length(trim(coalesce(p_address,'')))<8 then raise exception 'Informe o endereço completo'; end if;
- if jsonb_typeof(p_items)<>'array' or jsonb_array_length(p_items) not between 1 and 50 then raise exception 'Carrinho inválido'; end if;
+ if p_items is null or jsonb_typeof(p_items)<>'array' or jsonb_array_length(p_items) not between 1 and 50 then raise exception 'Carrinho inválido'; end if;
  insert into public.orders(customer_name,customer_phone,type,address,total,customer_user_id) values(trim(p_name),p_phone,p_type,p_address,0,uid) returning orders.id,orders.tracking_token into oid,tok;
  for it in select value from jsonb_array_elements(p_items) loop
  qty:=(it->>'quantity')::integer;
